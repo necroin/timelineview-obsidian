@@ -1,0 +1,12 @@
+{
+    "id": "timelineview-obsidian",
+    "name": "TimelineView",
+    "version": "1.0.0",
+    "minAppVersion": "0.13.11",
+    "description": "A plugin to display tasks from Dataview in a timeline view.",
+    "author": "Kirill Churkin",
+    "authorUrl": "https://github.com/necroin",
+    "helpUrl": "",
+    "isDesktopOnly": false
+  }
+  

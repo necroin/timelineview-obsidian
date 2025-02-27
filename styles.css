@@ -1,0 +1,81 @@
+:root {
+    --holiday-bg: rgba(30, 30, 30, 0.5);
+    --weekday-bg: rgb(60, 60, 60);
+    --event-bg: rgba(90, 90, 90, 0.5);
+
+    --grid-row-size: 40px;
+    --grid-column-size: 40px;
+    --day-size: 30px;
+    --event-size: 30px;
+}
+
+.timeline-container {
+    display: grid;
+    align-items: center;
+    overflow: auto;
+    position: relative;
+}
+
+.timeline-month {
+    height: var(--day-size);
+    padding-left: 10px;
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.timeline-day {
+    height: var(--day-size);
+    text-align: center;
+    border-bottom: 1px solid;
+    z-index: 1;
+}
+
+.timeline-day-bg {
+    content: '';
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
+}
+
+.timeline-event {
+    position: relative;
+    height: var(--event-size);
+    white-space: nowrap;
+    align-content: center;
+    z-index: 1;
+}
+
+.timeline-event::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    border: 1px solid;
+    border-radius: 5px;
+    backdrop-filter: invert(30%);
+    z-index: -1;
+}
+
+.timeline-event span {
+    padding: 5px;
+}
+
+.timeline-event-tag {
+    position: relative;
+}
+
+.timeline-event-tag::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    border-radius: 10px;
+    backdrop-filter: invert(50%);
+    z-index: -1;
+}
