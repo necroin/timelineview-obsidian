@@ -21,8 +21,13 @@ const DEFAULT_SETTINGS = {
     refreshInterval: 2500,
 };
 
+function GetDataviewDateTimeNow() {
+    const dataview = this.app.plugins.plugins.dataview;
+    return dataview.api.luxon.DateTime.now();
+}
+
 function regexreplace(text, pattern, replacement) {
-    let regex = new RegExp(pattern, "g");
+    const regex = new RegExp(pattern, "g");
     return text.replace(regex, replacement).trim();
 }
 
@@ -44,18 +49,6 @@ function ParseDate(date) {
 }
 
 function FormatDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
-function GetDataviewDateTimeNow() {
-    const dataview = this.app.plugins.plugins.dataview;
-    return dataview.api.luxon.DateTime.now();
-}
-
-function FormatDataviewDate(date) {
     const year = date.year;
     const month = String(date.month).padStart(2, "0");
     const day = String(date.day).padStart(2, "0");
@@ -82,10 +75,10 @@ function GetMonthName(date) {
 }
 
 function ParseArguments(text) {
-    let result = {};
-    let lines = text.split("\n");
-    for (let line of lines) {
-        let kv = line.split(":");
+    const result = {};
+    const lines = text.split("\n");
+    for (const line of lines) {
+        const kv = line.split(":");
         if (kv.length < 2) {
             continue;
         }
@@ -96,8 +89,8 @@ function ParseArguments(text) {
         value = value.trim();
 
         if (key == "Tags") {
-            let tags = value.split(",");
-            for (let tagIndex in tags) {
+            const tags = value.split(",");
+            for (const tagIndex in tags) {
                 tags[tagIndex] = tags[tagIndex].trim();
             }
             value = tags;
@@ -117,43 +110,92 @@ function ParseArguments(text) {
     return result;
 }
 
+class Logger {
+    constructor(options = {}, fields = []) {
+        this.logLevel = options.logLevel || "info";
+        this.levels = {
+            error: 0,
+            warn: 1,
+            info: 2,
+            debug: 3,
+        };
+        this.fields = fields;
+    }
+
+    log(level, ...data) {
+        if (this.levels[level] <= this.levels[this.logLevel]) {
+            const timestamp = new Date().toISOString();
+            const fieldsString = this.fields.length > 0 ? `[${this.fields.join("] [")}]` : "";
+            console.log(`[${timestamp}] [${level.toUpperCase()}] ${fieldsString}`, ...data);
+        }
+    }
+
+    error(...data) {
+        this.log("error", ...data);
+    }
+
+    warn(...data) {
+        this.log("warn", ...data);
+    }
+
+    info(...data) {
+        this.log("info", ...data);
+    }
+
+    debug(...data) {
+        this.log("debug", ...data);
+    }
+
+    setLogLevel(level) {
+        if (this.levels.hasOwnProperty(level)) {
+            this.logLevel = level;
+        } else {
+            console.warn(`Unknown log level: ${level}`);
+        }
+    }
+
+    withFields(...fields) {
+        return new Logger({ logLevel: this.logLevel }, [...this.fields, ...fields]);
+    }
+}
+
 class ViewProcessor extends obsidian.MarkdownRenderChild {
-    constructor(app, plugin, source, element) {
+    constructor(app, plugin, source, element, logger) {
         super(element);
         this.app = app;
         this.plugin = plugin;
         this.source = source;
         this.element = element;
+        this.logger = logger.withFields("view processor");
     }
 
     onload() {
         this.render(this.source, this.element);
-        this.registerEvent(
-            this.app.workspace.on("dataview:refresh-views", this.maybeRefresh)
-        );
+        this.registerEvent(this.app.workspace.on("dataview:refresh-views", this.maybeRefresh));
         this.register(this.element.onNodeInserted(this.maybeRefresh));
     }
 
     maybeRefresh = () => {
-        console.log("refresh");
+        this.logger.info("refresh");
         this.render(this.source, this.element);
     };
 
     async render(source, element) {
-        console.log("render timeline");
+        this.logger.info("render");
 
         const dataview = this.app.plugins.plugins.dataview;
         if (!dataview) {
-            console.error("Dataview plugin is not installed");
+            this.logger.error("Dataview plugin is not installed");
             return;
         }
 
         const args = ParseArguments(source);
-        console.log("arguments: ", args);
+        this.logger.info("arguments: ", args);
 
         let tasks = await dataview.api
             .pages(args.EventFind)
-            .file.lists.filter(
+            .file.lists
+            .filter(
                 task =>
                     task[args.EventStartField] != null &&
                     task[args.EventStartField] >
@@ -163,7 +205,7 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
         if (args.Limit != null) {
             tasks = tasks.limit(args.Limit);
         }
-        console.log(`task count: ${tasks.length}`);
+        this.logger.info(`task count: ${tasks.length}`);
 
         let rowsCount = tasks.length;
         if (rowsCount < VIEW_MIN_ROWS_COUNT) {
@@ -171,7 +213,7 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
         }
 
         const days = GetLastDaysByPeriod(args.Period, args.FutureOffset);
-        console.log(`days count: ${days.length}`);
+        this.logger.info(`days count: ${days.length}`);
 
         const monthElementRowOffset = 1;
         const dayElementRowOffset = monthElementRowOffset + 1;
@@ -192,10 +234,10 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
             const date = days[days.length - index - 1];
             const day = ParseDate(date).day;
             const month = GetMonthName(date);
-            daysIndex[FormatDate(date)] = index;
+            daysIndex[FormatDate(ParseDate(date))] = index;
 
             if (day == 1) {
-                let monthItem = document.createElement("div");
+                const monthItem = document.createElement("div");
                 monthItem.className = "timeline-month";
                 monthItem.innerText = month;
                 monthItem.style.gridRow = monthElementRowOffset;
@@ -203,13 +245,13 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
                 timelineContainer.appendChild(monthItem);
             }
 
-            let dayItem = document.createElement("div");
+            const dayItem = document.createElement("div");
             dayItem.className = "timeline-day";
             dayItem.innerText = day;
             dayItem.style.gridRow = dayElementRowOffset;
             dayItem.style.gridColumn = columnIndex;
 
-            let dayBackgroundItem = document.createElement("div");
+            const dayBackgroundItem = document.createElement("div");
             dayBackgroundItem.className = "timeline-day-bg";
             dayBackgroundItem.style.gridRow = `${dayElementRowOffset} / span ${rowsCount}`;
             dayBackgroundItem.style.gridColumn = columnIndex;
@@ -229,9 +271,8 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
                 eventEndDate = GetDataviewDateTimeNow();
             }
 
-            const duration =
-                Math.floor(eventEndDate.diff(eventStartDate, "days").days) + 1;
-            const dayIndex = daysIndex[FormatDataviewDate(eventStartDate)] + 1;
+            const duration = Math.floor(eventEndDate.diff(eventStartDate, "days").days) + 1;
+            const dayIndex = daysIndex[FormatDate(eventStartDate)] + 1;
 
             const eventItem = document.createElement("div");
             eventItem.className = "timeline-event";
@@ -242,7 +283,7 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
             eventItemText.innerText = regexreplace(task.text, "\\[.*\\]", "");
             eventItem.appendChild(eventItemText);
 
-            for (let tag of args.Tags) {
+            for (const tag of args.Tags) {
                 const tagValue = task[tag];
                 if (tagValue == null) continue;
                 const tagItem = document.createElement("span");
@@ -265,20 +306,42 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
 }
 
 class TimelineApi {
-    constructor(app, plugin) {
+    constructor(app, plugin, logger) {
         this.app = app;
         this.plugin = plugin;
+        this.logger = logger.withFields("api");
     }
 
     view(source, element, component) {
-        const processor = new ViewProcessor(this.app, this.plugin, source, element);
+        const processor = new ViewProcessor(
+            this.app,
+            this.plugin,
+            source,
+            element,
+            this.logger
+        );
         component.addChild(processor);
         processor.load();
     }
 }
 
 class TimelinePlugin extends obsidian.Plugin {
-    settings;
+    logger = new Logger({ logLevel: "info" }, ["Timelineview"]);
+
+    async onload() {
+        await this.loadSettings();
+        this.addSettingTab(new GeneralSettingsTab(this.app, this, this.logger));
+        this.api = new TimelineApi(this.app, this, this.logger);
+        this.registerMarkdownCodeBlockProcessor(
+            "timelineview",
+            async (source, element, ctx) => this.api.view(source, element, ctx)
+        );
+        this.logger.info(`version ${this.manifest.version} loaded.`);
+    }
+
+    onunload() {
+        this.logger.info(`version ${this.manifest.version} unloaded.`);
+    }
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -288,28 +351,13 @@ class TimelinePlugin extends obsidian.Plugin {
         Object.assign(this.settings, settings);
         await this.saveData(this.settings);
     }
-
-    async onload() {
-        await this.loadSettings();
-        this.addSettingTab(new GeneralSettingsTab(this.app, this));
-        this.api = new TimelineApi(this.app, this);
-        this.registerMarkdownCodeBlockProcessor(
-            "timelineview",
-            async (source, element, ctx) => this.api.view(source, element, ctx)
-        );
-    }
-
-    onunload() {
-        console.log(`Timelineview: version ${this.manifest.version} unloaded.`);
-    }
 }
 
 class GeneralSettingsTab extends obsidian.PluginSettingTab {
-    plugin;
-
-    constructor(app, plugin) {
+    constructor(app, plugin, logger) {
         super(app, plugin);
         this.plugin = plugin;
+        this.logger = logger.withFields('GeneralSettingsTab');
     }
 
     display() {
