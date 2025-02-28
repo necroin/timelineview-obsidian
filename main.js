@@ -55,12 +55,12 @@ function FormatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
-function GetLastDaysByPeriod(period, futureOffset) {
+function GetLastDaysByPeriod(period, futurePeriod) {
     const dates = [];
     const now = new Date();
-    now.setDate(now.getDate() + Number(futureOffset));
+    now.setDate(now.getDate() + Number(futurePeriod));
 
-    for (let i = 0; i < Number(period) + Number(futureOffset); i++) {
+    for (let i = 0; i < Number(period) + Number(futurePeriod); i++) {
         const date = new Date(now);
         date.setDate(now.getDate() - i);
         dates.push(date);
@@ -103,8 +103,8 @@ function ParseArguments(text) {
         result["Tags"] = [];
     }
 
-    if (result["FutureOffset"] == null) {
-        result["FutureOffset"] = 0;
+    if (result["FuturePeriod"] == null) {
+        result["FuturePeriod"] = 0;
     }
 
     return result;
@@ -212,7 +212,7 @@ class ViewProcessor extends obsidian.MarkdownRenderChild {
             rowsCount = VIEW_MIN_ROWS_COUNT;
         }
 
-        const days = GetLastDaysByPeriod(args.Period, args.FutureOffset);
+        const days = GetLastDaysByPeriod(args.Period, args.FuturePeriod);
         this.logger.info(`days count: ${days.length}`);
 
         const monthElementRowOffset = 1;
